@@ -1,2 +1,2 @@
 # Weather
-Tells weather of locations using api
+Tells weather of the specific locations using api
