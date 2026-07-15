@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>weather — India Weather Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0A0E1A;
+    --bg-panel:#101729;
+    --bg-panel-2:#141d33;
+    --line:#232c44;
+    --gold:#E0A93E;
+    --teal:#3FA9A0;
+    --text:#EDEFF3;
+    --muted:#8891A3;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(63,169,160,0.12), transparent 55%),
+      radial-gradient(ellipse at 90% 110%, rgba(224,169,62,0.10), transparent 50%),
+      var(--bg-deep);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:28px 32px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .brand{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:1.9rem;
+    font-weight:700;
+    letter-spacing:-0.02em;
+  }
+  .brand span{color:var(--gold);}
+  .brand-sub{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+  .clock{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.8rem;
+    color:var(--teal);
+    letter-spacing:0.05em;
+  }
+
+  /* ---------- Layout ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: 240px 1fr 340px;
+    gap:1px;
+    background:var(--line);
+    min-height:calc(100vh - 92px);
+  }
+  @media (max-width: 980px){
+    .grid{grid-template-columns:1fr; }
+  }
+
+  .panel{ background:var(--bg-panel); padding:20px; }
+
+  /* ---------- City rail ---------- */
+  .rail-title{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    letter-spacing:0.16em;
+    color:var(--muted);
+    text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  .rail-viewport{
+    height:520px;
+    overflow:hidden;
+    position:relative;
+    -webkit-mask-image:linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+    mask-image:linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+  }
+  @media (max-width:980px){ .rail-viewport{height:280px;} }
+
+  .rail-track{
+    display:flex;
+    flex-direction:column;
+    animation: scrollCities 26s linear infinite;
+  }
+  .rail-viewport:hover .rail-track{ animation-play-state:paused; }
+
+  @keyframes scrollCities{
+    from{ transform:translateY(0); }
+    to{ transform:translateY(-50%); }
+  }
+
+  .city-item{
+    padding:11px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    transition:background 0.15s ease, padding-left 0.15s ease;
+    border-left:2px solid transparent;
+  }
+  .city-item:hover{ background:rgba(255,255,255,0.04); }
+  .city-item.active{
+    background:rgba(224,169,62,0.10);
+    border-left:2px solid var(--gold);
+    padding-left:14px;
+  }
+  .city-name{ font-weight:600; font-size:0.92rem; }
+  .city-state{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.68rem;
+    color:var(--muted);
+    letter-spacing:0.04em;
+  }
+
+  /* ---------- Map ---------- */
+  .map-panel{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+  }
+  .map-wrap{
+    position:relative;
+    width:100%;
+    max-width:420px;
+  }
+  svg#india{ width:100%; height:auto; display:block; }
+  .india-shape{
+    fill:rgba(63,169,160,0.07);
+    stroke:var(--teal);
+    stroke-width:1.4;
+  }
+  .state-caption{
+    text-align:center;
+    margin-top:10px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    color:var(--muted);
+    letter-spacing:0.08em;
+  }
+
+  .marker{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    transition: left 0.6s cubic-bezier(.2,.8,.2,1), top 0.6s cubic-bezier(.2,.8,.2,1);
+  }
+  .marker-dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--gold);
+    box-shadow:0 0 10px 2px rgba(224,169,62,0.8);
+  }
+  .marker-ping{
+    position:absolute;
+    top:50%; left:50%;
+    width:9px; height:9px;
+    margin:-4.5px 0 0 -4.5px;
+    border-radius:50%;
+    border:1.5px solid var(--gold);
+    animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;
+  }
+  @keyframes ping{
+    0%{ transform:scale(1); opacity:0.8; }
+    100%{ transform:scale(6); opacity:0; }
+  }
+
+  /* ---------- Detail panel ---------- */
+  .detail-panel{ display:flex; flex-direction:column; gap:18px; }
+  .detail-head .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.68rem;
+    color:var(--gold);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+  }
+  .detail-head h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:1.6rem;
+    margin-top:4px;
+  }
+  .detail-head .state-line{
+    color:var(--muted);
+    font-size:0.85rem;
+    margin-top:2px;
+  }
+
+  .famous-box{
+    background:var(--bg-panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:0.85rem;
+    line-height:1.5;
+    color:var(--text);
+  }
+  .famous-box b{ color:var(--teal); }
+
+  .weather-status{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.78rem;
+    color:var(--muted);
+  }
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .stat{
+    background:var(--bg-panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+  }
+  .stat-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.62rem;
+    color:var(--muted);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+  }
+  .stat-value{
+    font-family:'JetBrains Mono', monospace;
+    font-size:1.35rem;
+    font-weight:700;
+    color:var(--gold);
+    margin-top:4px;
+  }
+  .stat-value.small{ font-size:1rem; color:var(--text); }
+
+  .refresh-btn{
+    margin-top:4px;
+    background:var(--teal);
+    color:#0A0E1A;
+    border:none;
+    border-radius:8px;
+    padding:11px 16px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:0.85rem;
+    cursor:pointer;
+    transition:filter 0.15s ease;
+  }
+  .refresh-btn:hover{ filter:brightness(1.1); }
+  .refresh-btn:active{ filter:brightness(0.9); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">मौसम <span>Radar</span></div>
+    <div class="brand-sub">Live weather · Karnataka &amp; beyond</div>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<div class="grid">
+
+  <!-- CITY RAIL -->
+  <div class="panel">
+    <div class="rail-title">Cities · tap to select</div>
+    <div class="rail-viewport">
+      <div class="rail-track" id="railTrack"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="panel map-panel">
+    <div class="map-wrap">
+      <svg id="india" viewBox="0 0 500 620" xmlns="http://www.w3.org/2000/svg">
+        <!-- Stylized / approximate India silhouette, not to scale -->
+        <path class="india-shape" d="
+          M 240 20
+          L 210 55 L 195 40 L 165 65 L 150 100
+          L 165 140 L 130 165 L 110 210
+          L 120 260 L 90 300 L 95 350
+          L 130 380 L 120 430
+          L 150 470 L 160 520
+          L 190 560 L 210 590
+          L 230 560 L 225 510
+          L 250 480 L 240 440
+          L 270 410 L 300 420
+          L 330 390 L 320 350
+          L 350 330 L 380 340
+          L 400 300 L 370 270
+          L 390 230 L 360 200
+          L 370 160 L 340 130
+          L 350 90 L 310 70
+          L 280 90 L 260 55
+          Z" />
+        <!-- Sri Lanka hint, purely decorative -->
+        <ellipse cx="215" cy="605" rx="7" ry="10" fill="rgba(63,169,160,0.10)" stroke="var(--teal)" stroke-width="1"/>
+      </svg>
+      <div class="marker" id="marker">
+        <div class="marker-ping"></div>
+        <div class="marker-dot"></div>
+      </div>
+    </div>
+    <div class="state-caption">Marker position is approximate, not survey-accurate</div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="panel detail-panel">
+    <div class="detail-head">
+      <div class="eyebrow">Selected location</div>
+      <h2 id="cityName">Bengaluru</h2>
+      <div class="state-line" id="stateLine">Karnataka, India</div>
+    </div>
+
+    <div class="famous-box">
+      <b>Known for —</b> <span id="famousFor">India's tech capital, garden city, and pub culture.</span>
+    </div>
+
+    <div class="weather-status" id="weatherStatus">Paste your API key in the code to load live data.</div>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-label">Temperature</div>
+        <div class="stat-value" id="temp">--°C</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Feels like</div>
+        <div class="stat-value small" id="feels">--°C</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Condition</div>
+        <div class="stat-value small" id="cond">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Humidity</div>
+        <div class="stat-value small" id="humidity">--%</div>
+      </div>
+    </div>
+
+    <button class="refresh-btn" id="refreshBtn">Refresh weather</button>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   PASTE YOUR OPENWEATHERMAP API KEY HERE
+   ============================================================ */
+const API_KEY = "4700241a2e90e947d597a515411242cd";
+const API_URL = "https://api.openweathermap.org/data/2.5/weather";
+
+/* ---------- City data: name, state, lat, lon, famous-for ---------- */
+const CITIES = [
+  { name:"Bengaluru", state:"Karnataka", lat:12.9716, lon:77.5946, famous:"India's tech capital, garden city, and pub culture." },
+  { name:"Mysuru", state:"Karnataka", lat:12.2958, lon:76.6394, famous:"Royal palaces and the grand Dasara festival." },
+  { name:"Mangaluru", state:"Karnataka", lat:12.9141, lon:74.8560, famous:"Port city famous for cashews and seafood." },
+  { name:"Hubballi", state:"Karnataka", lat:15.3647, lon:75.1240, famous:"Twin-city commercial and railway hub." },
+  { name:"Mumbai", state:"Maharashtra", lat:19.0760, lon:72.8777, famous:"Financial capital and home of Bollywood." },
+  { name:"Delhi", state:"Delhi (NCT)", lat:28.7041, lon:77.1025, famous:"India's capital, layered with Mughal history." },
+  { name:"Chennai", state:"Tamil Nadu", lat:13.0827, lon:80.2707, famous:"Marina Beach and Carnatic music heritage." },
+  { name:"Kolkata", state:"West Bengal", lat:22.5726, lon:88.3639, famous:"Cultural capital, famed for Durga Puja." },
+  { name:"Hyderabad", state:"Telangana", lat:17.3850, lon:78.4867, famous:"Charminar, pearls, and biryani." },
+  { name:"Pune", state:"Maharashtra", lat:18.5204, lon:73.8567, famous:"Major education and IT hub." },
+  { name:"Ahmedabad", state:"Gujarat", lat:23.0225, lon:72.5714, famous:"Textile heritage and Sabarmati Ashram." },
+  { name:"Jaipur", state:"Rajasthan", lat:26.9124, lon:75.7873, famous:"The Pink City, forts and palaces." },
+  { name:"Lucknow", state:"Uttar Pradesh", lat:26.8467, lon:80.9462, famous:"Nawabi culture and kebabs." },
+  { name:"Kochi", state:"Kerala", lat:9.9312, lon:76.2673, famous:"Backwaters and centuries-old spice trade." },
+  { name:"Panaji", state:"Goa", lat:15.4909, lon:73.8278, famous:"Beaches and Portuguese-era architecture." },
+  { name:"Chandigarh", state:"Punjab / Haryana", lat:30.7333, lon:76.7794, famous:"India's first planned city, by Le Corbusier." },
+  { name:"Bhopal", state:"Madhya Pradesh", lat:23.2599, lon:77.4126, famous:"The City of Lakes." },
+  { name:"Guwahati", state:"Assam", lat:26.1445, lon:91.7362, famous:"Gateway to Northeast India, on the Brahmaputra." },
+  { name:"Varanasi", state:"Uttar Pradesh", lat:25.3176, lon:82.9739, famous:"Ganga ghats and centuries of spiritual life." },
+  { name:"Amritsar", state:"Punjab", lat:31.6340, lon:74.8723, famous:"Home of the Golden Temple." },
+];
+
+/* ---------- Approx lat/lon -> % position over the map box ---------- */
+const LAT_MIN = 8, LAT_MAX = 35, LON_MIN = 68, LON_MAX = 97;
+function coordsToPercent(lat, lon){
+  const x = ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * 100;
+  const y = 100 - ((lat - LAT_MIN) / (LAT_MAX - LAT_MIN)) * 100;
+  return { x: Math.min(96, Math.max(4, x)), y: Math.min(96, Math.max(4, y)) };
+}
+
+/* ---------- Build scrolling city rail (duplicated for seamless loop) ---------- */
+const track = document.getElementById('railTrack');
+function buildRail(){
+  track.innerHTML = "";
+  const list = [...CITIES, ...CITIES]; // duplicate for infinite scroll illusion
+  list.forEach((city, i) => {
+    const el = document.createElement('div');
+    el.className = 'city-item';
+    el.dataset.index = i % CITIES.length;
+    el.innerHTML = `<div class="city-name">${city.name}</div><div class="city-state">${city.state}</div>`;
+    el.addEventListener('click', () => selectCity(i % CITIES.length));
+    track.appendChild(el);
+  });
+}
+buildRail();
+
+/* ---------- Marker + detail panel updates ---------- */
+const marker = document.getElementById('marker');
+function moveMarker(lat, lon){
+  const { x, y } = coordsToPercent(lat, lon);
+  marker.style.left = x + '%';
+  marker.style.top = y + '%';
+}
+
+function highlightActive(index){
+  document.querySelectorAll('.city-item').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.index) === index);
+  });
+}
+
+let currentIndex = 0;
+
+function selectCity(index){
+  currentIndex = index;
+  const city = CITIES[index];
+  document.getElementById('cityName').textContent = city.name;
+  document.getElementById('stateLine').textContent = city.state + ", India";
+  document.getElementById('famousFor').textContent = city.famous;
+  moveMarker(city.lat, city.lon);
+  highlightActive(index);
+  fetchWeather(city);
+}
+
+/* ---------- Weather fetch ---------- */
+async function fetchWeather(city){
+  const statusEl = document.getElementById('weatherStatus');
+
+  if (!API_KEY || API_KEY === "PASTE_YOUR_API_TOKEN_HERE") {
+    statusEl.textContent = "Paste your API key in the code to load live data.";
+    return;
+  }
+
+  statusEl.textContent = "Loading weather...";
+
+  try {
+    const params = new URLSearchParams({
+      q: `${city.name},IN`,
+      appid: API_KEY,
+      units: "metric"
+    });
+    const res = await fetch(`${API_URL}?${params.toString()}`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+
+    document.getElementById('temp').textContent = Math.round(data.main.temp) + "°C";
+    document.getElementById('feels').textContent = Math.round(data.main.feels_like) + "°C";
+    document.getElementById('cond').textContent = data.weather[0].description;
+    document.getElementById('humidity').textContent = data.main.humidity + "%";
+    statusEl.textContent = "Updated just now";
+  } catch (err) {
+    statusEl.textContent = "Couldn't load weather. Check your API key / connection.";
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', () => fetchWeather(CITIES[currentIndex]));
+
+/* ---------- Clock ---------- */
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', { hour12:false });
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ---------- Init ---------- */
+selectCity(0);
+</script>
+
+</body>
+</html>
